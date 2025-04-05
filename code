@@ -1,0 +1,122 @@
+import random
+import json
+import os
+from tkinter import *
+from tkinter import messagebox
+
+progress_file = "progress.json"
+
+def load_progress():
+    if os.path.exists(progress_file):
+        with open(progress_file, "r") as file:
+            progress = json.load(file)
+    else:
+        progress = {}
+
+    old_keys = {"addition": "+", "subtraction": "-", "multiplication": "*", "division": "/"}
+    for old, new in old_keys.items():
+        if old in progress:
+            progress[new] = progress.get(new, 0) + progress[old]
+            del progress[old]
+
+    for op in ["+", "-", "*", "/"]:
+        progress.setdefault(op, 0)
+
+    return progress
+
+def save_progress(progress):
+    with open(progress_file, "w") as file:
+        json.dump(progress, file)
+
+def generate_problem():
+    num1 = random.randint(1, 20)
+    num2 = random.randint(1, 20)
+    operation = random.choice(["+", "-", "*", "/"])
+    if operation == "/":
+        num1 = num2 * random.randint(1, 10)
+    return num1, num2, operation
+
+def calculate_answer(num1, num2, operation):
+    return eval(f"{num1} {operation} {num2}")
+
+def give_explanation(num1, num2, operation, correct_answer):
+    explanations = {
+        "+": f"Addition is combining numbers! {num1} + {num2} = {correct_answer}.",
+        "-": f"Subtraction is taking away! {num1} - {num2} = {correct_answer}.",
+        "*": f"Multiplication is repeated addition! {num1} × {num2} means adding {num1} {num2} times.",
+        "/": f"Division splits a number into equal parts! {num1} ÷ {num2} = {correct_answer}."
+    }
+    return explanations[operation]
+
+class MathGameGUI:
+    def __init__(self, master):
+        self.master = master
+        master.title("Math Learning Game")
+        master.geometry("400x300")
+        self.progress = load_progress()
+
+        self.num1, self.num2, self.operation = generate_problem()
+        self.correct_answer = calculate_answer(self.num1, self.num2, self.operation)
+
+        self.label = Label(master, text="🔢 Welcome to the Math Game!", font=("Arial", 14))
+        self.label.pack(pady=10)
+
+        self.question_label = Label(master, text=f"What is {self.num1} {self.operation} {self.num2}?", font=("Arial", 12))
+        self.question_label.pack(pady=10)
+
+        self.answer_entry = Entry(master)
+        self.answer_entry.pack()
+
+        self.submit_button = Button(master, text="Submit", command=self.check_answer)
+        self.submit_button.pack(pady=5)
+
+        self.result_label = Label(master, text="", font=("Arial", 12))
+        self.result_label.pack(pady=10)
+
+        self.next_button = Button(master, text="Next Question", command=self.next_question, state=DISABLED)
+        self.next_button.pack()
+
+        self.progress_button = Button(master, text="Show Progress", command=self.show_progress)
+        self.progress_button.pack(pady=5)
+
+        self.quit_button = Button(master, text="Quit", command=self.quit_game)
+        self.quit_button.pack()
+
+    def check_answer(self):
+        try:
+            user_answer = float(self.answer_entry.get())
+        except ValueError:
+            messagebox.showerror("Error", "❌ Please enter a valid number!")
+            return
+
+        if user_answer == self.correct_answer:
+            self.result_label.config(text="✅ Correct! Great job!", fg="green")
+            self.progress[self.operation] += 1
+        else:
+            self.result_label.config(
+                text=f"❌ Wrong! Correct: {self.correct_answer}\n{give_explanation(self.num1, self.num2, self.operation, self.correct_answer)}",
+                fg="red"
+            )
+        save_progress(self.progress)
+        self.submit_button.config(state=DISABLED)
+        self.next_button.config(state=NORMAL)
+
+    def next_question(self):
+        self.num1, self.num2, self.operation = generate_problem()
+        self.correct_answer = calculate_answer(self.num1, self.num2, self.operation)
+        self.question_label.config(text=f"What is {self.num1} {self.operation} {self.num2}?")
+        self.result_label.config(text="")
+        self.answer_entry.delete(0, END)
+        self.submit_button.config(state=NORMAL)
+        self.next_button.config(state=DISABLED)
+
+    def show_progress(self):
+        progress_str = "\n".join([f"{op}: {count}" for op, count in self.progress.items()])
+        messagebox.showinfo("📊 Your Progress", progress_str)
+
+    def quit_game(self):
+        self.master.quit()
+
+root = Tk()
+game_gui = MathGameGUI(root)
+root.mainloop()
